@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#123c69">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Asistencia">
+  <title>Asistencia Automatica</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+  <style>
+    :root {
+      --ink: #12212f;
+      --muted: #667789;
+      --line: #d8e0e8;
+      --panel: #ffffff;
+      --page: #eef3f7;
+      --primary: #123c69;
+      --primary-2: #246a73;
+      --success: #1f7a4d;
+      --warning: #a86613;
+      --danger: #b3261e;
+    }
+
+    * { box-sizing: border-box; }
+
+    html,
+    body {
+      min-height: 100%;
+      margin: 0;
+    }
+
+    body {
+      background: var(--page);
+      color: var(--ink);
+      font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    .shell {
+      min-height: 100vh;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .topbar {
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+      padding: 14px clamp(16px, 4vw, 34px);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .brand {
+      min-width: 0;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: clamp(1.2rem, 2.7vw, 2rem);
+      font-weight: 800;
+      letter-spacing: 0;
+      line-height: 1.1;
+    }
+
+    .clock {
+      display: grid;
+      gap: 2px;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .clock strong {
+      font-size: clamp(1.15rem, 3vw, 2rem);
+      line-height: 1;
+    }
+
+    .clock span {
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+
+    .main {
+      flex: 1;
+      width: min(1180px, 100%);
+      margin: 0 auto;
+      padding: clamp(14px, 3vw, 28px);
+      display: grid;
+      grid-template-columns: minmax(300px, 1fr);
+      gap: clamp(14px, 3vw, 24px);
+      align-items: stretch;
+    }
+
+    .scanner-panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .reader-wrap {
+      position: relative;
+      flex: 1;
+      min-height: 360px;
+      background: #091019;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    #reader {
+      width: 100%;
+      min-height: 360px;
+    }
+
+    #reader video {
+      object-fit: cover;
+    }
+
+    .target {
+      pointer-events: none;
+      position: absolute;
+      inset: 50%;
+      width: min(58vmin, 360px);
+      aspect-ratio: 1;
+      transform: translate(-50%, -50%);
+      border: 2px solid rgba(255, 255, 255, 0.85);
+      border-radius: 8px;
+      box-shadow: 0 0 0 999px rgba(4, 11, 18, 0.42);
+    }
+
+    .target::before,
+    .target::after {
+      content: "";
+      position: absolute;
+      left: 18px;
+      right: 18px;
+      height: 2px;
+      background: rgba(95, 211, 164, 0.95);
+    }
+
+    .target::before { top: 18px; }
+    .target::after { bottom: 18px; }
+
+    .scanner-footer {
+      padding: 16px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border-top: 1px solid var(--line);
+    }
+
+    .scanner-footer span {
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .event-status {
+      min-width: min(460px, 52%);
+      display: grid;
+      gap: 4px;
+    }
+
+    .status-card.success { color: var(--success); }
+    .status-card.warning { color: var(--warning); }
+    .status-card.danger { color: var(--danger); }
+
+    .status-label {
+      color: var(--muted);
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+    }
+
+    .status-title {
+      margin: 0;
+      font-size: clamp(1.12rem, 2.4vw, 1.55rem);
+      line-height: 1.1;
+      font-weight: 800;
+    }
+
+    .status-detail {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.98rem;
+    }
+
+    .btn-action {
+      border: 0;
+      border-radius: 8px;
+      min-height: 46px;
+      font-weight: 800;
+      color: #fff;
+      background: var(--primary);
+    }
+
+    .btn-action.secondary {
+      background: #e7edf3;
+      color: var(--ink);
+      border: 1px solid var(--line);
+    }
+
+    .btn-action:disabled {
+      opacity: 0.55;
+      cursor: wait;
+    }
+
+    .toast-area {
+      position: fixed;
+      left: 50%;
+      bottom: 18px;
+      width: min(520px, calc(100% - 28px));
+      transform: translateX(-50%);
+      z-index: 20;
+      display: grid;
+      gap: 8px;
+    }
+
+    .toast-msg {
+      background: rgba(18, 33, 47, 0.96);
+      color: #fff;
+      border-radius: 8px;
+      padding: 12px 14px;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.22);
+      font-weight: 700;
+      text-align: center;
+    }
+
+    @media (max-width: 860px) {
+      .topbar {
+        align-items: flex-start;
+      }
+
+      .main {
+        grid-template-columns: 1fr;
+      }
+
+      .reader-wrap,
+      #reader {
+        min-height: min(62vh, 520px);
+      }
+
+      .scanner-footer {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .event-status {
+        min-width: 100%;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .topbar {
+        flex-direction: column;
+      }
+
+      .clock {
+        text-align: left;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <h1>Asistencia Automatica</h1>
+      </div>
+      <div class="clock" aria-live="polite">
+        <strong id="hora">--:--:--</strong>
+        <span id="fecha">--/--/----</span>
+      </div>
+    </header>
+
+    <main class="main">
+      <section class="scanner-panel" aria-label="Escaner de codigos QR">
+        <div class="reader-wrap">
+          <div id="reader"></div>
+          <div class="target" aria-hidden="true"></div>
+        </div>
+        <div class="scanner-footer">
+          <div class="event-status status-card" id="statusCard" aria-live="polite">
+            <span class="status-label" id="cameraText">Preparando camara...</span>
+            <h2 class="status-title" id="statusTitle">Listo para escanear</h2>
+            <p class="status-detail" id="statusDetail">Acerca un codigo QR al recuadro.</p>
+          </div>
+          <button class="btn-action secondary" id="toggleBtn" type="button">Pausar</button>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="toast-area" id="toastArea" aria-live="polite"></div>
+
+  <script>
+    const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxXvzmVXYJp4bDWH-MDXxBYUVjIayLgEfMN4OfQzm8P3GbHTH_bhObKP-JBxJzt98wC5w/exec';
+    const DUPLICATE_WINDOW_MS = 12000;
+
+    const state = {
+      scanner: null,
+      scannerActive: false,
+      processing: false,
+      paused: false,
+      recentScans: new Map(),
+      audioCtx: null
+    };
+
+    const els = {
+      fecha: document.getElementById('fecha'),
+      hora: document.getElementById('hora'),
+      cameraText: document.getElementById('cameraText'),
+      toggleBtn: document.getElementById('toggleBtn'),
+      statusCard: document.getElementById('statusCard'),
+      statusTitle: document.getElementById('statusTitle'),
+      statusDetail: document.getElementById('statusDetail'),
+      toastArea: document.getElementById('toastArea')
+    };
+
+    function updateDateTime() {
+      const now = new Date();
+      els.fecha.textContent = now.toLocaleDateString('es-MX', {
+        weekday: 'long',
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric'
+      });
+      els.hora.textContent = now.toLocaleTimeString('es-MX', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+    }
+
+    function setStatus(type, title, detail) {
+      els.statusCard.className = 'event-status status-card';
+      if (type) els.statusCard.classList.add(type);
+      els.statusTitle.textContent = title;
+      els.statusDetail.textContent = detail;
+    }
+
+    function showToast(message) {
+      const toast = document.createElement('div');
+      toast.className = 'toast-msg';
+      toast.textContent = message;
+      els.toastArea.appendChild(toast);
+      setTimeout(() => toast.remove(), 2600);
+    }
+
+    function getAudioCtx() {
+      if (!state.audioCtx) {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (AudioContext) state.audioCtx = new AudioContext();
+      }
+      return state.audioCtx;
+    }
+
+    function unlockAudio() {
+      const ctx = getAudioCtx();
+      if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {});
+    }
+
+    function playSound(type) {
+      const ctx = getAudioCtx();
+      if (!ctx || ctx.state !== 'running') return;
+
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      const now = ctx.currentTime;
+      if (type === 'success') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(760, now);
+        osc.frequency.setValueAtTime(980, now + 0.12);
+        gain.gain.setValueAtTime(0.28, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.32);
+        osc.start(now);
+        osc.stop(now + 0.32);
+      } else if (type === 'warning') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(430, now);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+        osc.start(now);
+        osc.stop(now + 0.2);
+      } else {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(240, now);
+        osc.frequency.setValueAtTime(180, now + 0.14);
+        gain.gain.setValueAtTime(0.22, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.36);
+        osc.start(now);
+        osc.stop(now + 0.36);
+      }
+    }
+
+    function cleanRecentScans() {
+      const now = Date.now();
+      for (const [id, timestamp] of state.recentScans.entries()) {
+        if (now - timestamp > DUPLICATE_WINDOW_MS) state.recentScans.delete(id);
+      }
+    }
+
+    function isRecentDuplicate(id) {
+      cleanRecentScans();
+      const lastSeen = state.recentScans.get(id);
+      if (!lastSeen) return false;
+      return Date.now() - lastSeen < DUPLICATE_WINDOW_MS;
+    }
+
+    function markSeen(id) {
+      state.recentScans.set(id, Date.now());
+    }
+
+    function jsonpRequest(url) {
+      return new Promise((resolve, reject) => {
+        const callbackName = `asistenciaCallback_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
+        const script = document.createElement('script');
+        const separator = url.includes('?') ? '&' : '?';
+        const timeoutId = setTimeout(() => {
+          cleanup();
+          reject(new Error('Tiempo de espera agotado.'));
+        }, 15000);
+
+        function cleanup() {
+          clearTimeout(timeoutId);
+          script.remove();
+          delete window[callbackName];
+        }
+
+        window[callbackName] = (data) => {
+          cleanup();
+          resolve(data);
+        };
+
+        script.onerror = () => {
+          cleanup();
+          reject(new Error('No se pudo conectar.'));
+        };
+
+        script.src = `${url}${separator}callback=${encodeURIComponent(callbackName)}`;
+        document.body.appendChild(script);
+      });
+    }
+
+    async function registrar(id) {
+      const cleanId = String(id || '').trim();
+      if (!cleanId || state.processing) return;
+
+      if (isRecentDuplicate(cleanId)) {
+        setStatus('warning', 'QR ya leido', 'Espera unos segundos antes de volver a registrar el mismo codigo.');
+        showToast('Lectura repetida ignorada');
+        playSound('warning');
+        return;
+      }
+
+      state.processing = true;
+      markSeen(cleanId);
+      setStatus('', 'Registrando...', cleanId);
+
+      try {
+        const params = new URLSearchParams({
+          action: 'registrarAsistencia',
+          id_escaneado: cleanId
+        });
+        const data = await jsonpRequest(`${WEBAPP_URL}?${params.toString()}`);
+        if (!data || data.status !== 'ok') {
+          throw new Error((data && data.message) || 'No se pudo registrar.');
+        }
+
+        setStatus('success', 'Asistencia registrada', 'Puedes pasar el siguiente codigo QR.');
+        showToast(`Registrado: ${cleanId}`);
+        playSound('success');
+      } catch (err) {
+        state.recentScans.delete(cleanId);
+        setStatus('danger', 'Error al guardar', err.message || 'Revisa la conexion e intenta de nuevo.');
+        showToast('No se pudo registrar');
+        playSound('error');
+      } finally {
+        state.processing = false;
+      }
+    }
+
+    async function startScanner() {
+      if (state.scannerActive || state.paused) return;
+
+      try {
+        state.scanner = state.scanner || new Html5Qrcode('reader');
+        const config = {
+          fps: 12,
+          qrbox: (viewfinderWidth, viewfinderHeight) => {
+            const size = Math.floor(Math.min(viewfinderWidth, viewfinderHeight) * 0.72);
+            return { width: size, height: size };
+          },
+          aspectRatio: 1.333
+        };
+
+        await state.scanner.start(
+          { facingMode: 'environment' },
+          config,
+          (decodedText) => registrar(decodedText)
+        );
+
+        state.scannerActive = true;
+        els.cameraText.textContent = 'Camara activa';
+        els.toggleBtn.textContent = 'Pausar';
+        setStatus('', 'Listo para escanear', 'Acerca un codigo QR al recuadro.');
+      } catch (err) {
+        state.scannerActive = false;
+        els.cameraText.textContent = 'Camara no disponible';
+        setStatus('danger', 'Activa la camara', 'Permite el acceso a la camara y usa el boton Reanudar.');
+        showToast('No se pudo iniciar la camara');
+      }
+    }
+
+    async function stopScanner() {
+      if (!state.scanner) return;
+      try {
+        if (state.scanner.isScanning) await state.scanner.stop();
+        await state.scanner.clear();
+      } catch (err) {
+        console.warn('No se pudo detener el escaner:', err);
+      } finally {
+        state.scanner = null;
+        state.scannerActive = false;
+      }
+    }
+
+    async function toggleScanner() {
+      unlockAudio();
+      if (state.scannerActive) {
+        state.paused = true;
+        await stopScanner();
+        els.cameraText.textContent = 'Camara pausada';
+        els.toggleBtn.textContent = 'Reanudar';
+        setStatus('warning', 'Escaneo pausado', 'Toca Reanudar para continuar registrando.');
+      } else {
+        state.paused = false;
+        els.toggleBtn.textContent = 'Pausar';
+        await startScanner();
+      }
+    }
+
+    function bindEvents() {
+      document.addEventListener('pointerdown', unlockAudio, { once: true });
+      document.addEventListener('keydown', unlockAudio, { once: true });
+
+      els.toggleBtn.addEventListener('click', toggleScanner);
+    }
+
+    function registerServiceWorker() {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js').catch(console.error);
+      }
+    }
+
+    async function init() {
+      bindEvents();
+      registerServiceWorker();
+      updateDateTime();
+      setInterval(updateDateTime, 1000);
+      await startScanner();
+    }
+
+    init();
+  </script>
+</body>
+</html>
