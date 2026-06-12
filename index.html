@@ -282,17 +282,6 @@
       font-size: clamp(1rem, 2.3vw, 1.2rem);
     }
 
-    .result-button {
-      margin-top: 24px;
-      min-width: 160px;
-      min-height: 48px;
-      border: 0;
-      border-radius: 8px;
-      background: var(--primary);
-      color: #fff;
-      font-weight: 900;
-    }
-
     @media (max-width: 860px) {
       .topbar {
         align-items: flex-start;
@@ -363,7 +352,6 @@
       <div class="result-icon" id="resultIcon">!</div>
       <h2 id="resultTitle">Resultado</h2>
       <p id="resultMessage">Registro procesado.</p>
-      <button class="result-button" id="resultButton" type="button">Continuar</button>
     </div>
   </div>
 
@@ -391,8 +379,7 @@
       resultAlert: document.getElementById('resultAlert'),
       resultIcon: document.getElementById('resultIcon'),
       resultTitle: document.getElementById('resultTitle'),
-      resultMessage: document.getElementById('resultMessage'),
-      resultButton: document.getElementById('resultButton')
+      resultMessage: document.getElementById('resultMessage')
     };
 
     function updateDateTime() {
@@ -432,7 +419,6 @@
           closed = true;
           clearTimeout(timer);
           els.resultAlert.className = 'result-alert';
-          els.resultButton.removeEventListener('click', closeAlert);
           resolve();
         }
 
@@ -440,8 +426,6 @@
         els.resultIcon.textContent = icons[type] || '!';
         els.resultTitle.textContent = title;
         els.resultMessage.textContent = message;
-        els.resultButton.focus({ preventScroll: true });
-        els.resultButton.addEventListener('click', closeAlert);
 
         timer = setTimeout(closeAlert, 2600);
       });
