@@ -587,7 +587,7 @@
         };
 
         await state.scanner.start(
-          { facingMode: 'environment' },
+          { facingMode: 'user' },
           config,
           (decodedText) => registrar(decodedText)
         );
