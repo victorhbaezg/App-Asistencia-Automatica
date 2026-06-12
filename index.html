@@ -223,25 +223,74 @@
       cursor: wait;
     }
 
-    .toast-area {
+    .result-alert {
       position: fixed;
-      left: 50%;
-      bottom: 18px;
-      width: min(520px, calc(100% - 28px));
-      transform: translateX(-50%);
-      z-index: 20;
-      display: grid;
-      gap: 8px;
+      inset: 0;
+      z-index: 30;
+      display: none;
+      place-items: center;
+      padding: 24px;
+      background: rgba(8, 16, 24, 0.62);
     }
 
-    .toast-msg {
-      background: rgba(18, 33, 47, 0.96);
-      color: #fff;
+    .result-alert.open {
+      display: grid;
+    }
+
+    .result-box {
+      width: min(520px, 100%);
+      background: #fff;
       border-radius: 8px;
-      padding: 12px 14px;
-      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.22);
-      font-weight: 700;
+      padding: clamp(24px, 5vw, 38px);
       text-align: center;
+      box-shadow: 0 26px 70px rgba(0, 0, 0, 0.34);
+      border-top: 8px solid var(--primary-2);
+    }
+
+    .result-alert.success .result-box { border-top-color: var(--success); }
+    .result-alert.warning .result-box { border-top-color: var(--warning); }
+    .result-alert.danger .result-box { border-top-color: var(--danger); }
+
+    .result-icon {
+      width: 68px;
+      height: 68px;
+      margin: 0 auto 16px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      background: var(--primary-2);
+      font-size: 2.2rem;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .result-alert.success .result-icon { background: var(--success); }
+    .result-alert.warning .result-icon { background: var(--warning); }
+    .result-alert.danger .result-icon { background: var(--danger); }
+
+    .result-box h2 {
+      margin: 0;
+      font-size: clamp(1.6rem, 4vw, 2.35rem);
+      line-height: 1.1;
+      font-weight: 900;
+    }
+
+    .result-box p {
+      margin: 12px 0 0;
+      color: var(--muted);
+      font-size: clamp(1rem, 2.3vw, 1.2rem);
+    }
+
+    .result-button {
+      margin-top: 24px;
+      min-width: 160px;
+      min-height: 48px;
+      border: 0;
+      border-radius: 8px;
+      background: var(--primary);
+      color: #fff;
+      font-weight: 900;
     }
 
     @media (max-width: 860px) {
@@ -309,7 +358,14 @@
     </main>
   </div>
 
-  <div class="toast-area" id="toastArea" aria-live="polite"></div>
+  <div class="result-alert" id="resultAlert" role="alertdialog" aria-modal="true" aria-labelledby="resultTitle" aria-describedby="resultMessage">
+    <div class="result-box">
+      <div class="result-icon" id="resultIcon">!</div>
+      <h2 id="resultTitle">Resultado</h2>
+      <p id="resultMessage">Registro procesado.</p>
+      <button class="result-button" id="resultButton" type="button">Continuar</button>
+    </div>
+  </div>
 
   <script>
     const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycby3lYGzuC2iEVrRbpMnkd1WYmRKW4GMgRVsQzLVbfEhwPbYsPgFZA3MmwauEwU70hlJbw/exec';
@@ -332,7 +388,11 @@
       statusCard: document.getElementById('statusCard'),
       statusTitle: document.getElementById('statusTitle'),
       statusDetail: document.getElementById('statusDetail'),
-      toastArea: document.getElementById('toastArea')
+      resultAlert: document.getElementById('resultAlert'),
+      resultIcon: document.getElementById('resultIcon'),
+      resultTitle: document.getElementById('resultTitle'),
+      resultMessage: document.getElementById('resultMessage'),
+      resultButton: document.getElementById('resultButton')
     };
 
     function updateDateTime() {
@@ -357,12 +417,34 @@
       els.statusDetail.textContent = detail;
     }
 
-    function showToast(message) {
-      const toast = document.createElement('div');
-      toast.className = 'toast-msg';
-      toast.textContent = message;
-      els.toastArea.appendChild(toast);
-      setTimeout(() => toast.remove(), 2600);
+    function showResultAlert(type, title, message) {
+      return new Promise((resolve) => {
+        const icons = {
+          success: '✓',
+          warning: '!',
+          danger: '×'
+        };
+        let closed = false;
+        let timer = null;
+
+        function closeAlert() {
+          if (closed) return;
+          closed = true;
+          clearTimeout(timer);
+          els.resultAlert.className = 'result-alert';
+          els.resultButton.removeEventListener('click', closeAlert);
+          resolve();
+        }
+
+        els.resultAlert.className = `result-alert open ${type}`;
+        els.resultIcon.textContent = icons[type] || '!';
+        els.resultTitle.textContent = title;
+        els.resultMessage.textContent = message;
+        els.resultButton.focus({ preventScroll: true });
+        els.resultButton.addEventListener('click', closeAlert);
+
+        timer = setTimeout(closeAlert, 2600);
+      });
     }
 
     function getAudioCtx() {
@@ -467,14 +549,18 @@
       const cleanId = String(id || '').trim();
       if (!cleanId || state.processing) return;
 
+      state.processing = true;
+      await stopScanner();
+
       if (isRecentDuplicate(cleanId)) {
         setStatus('warning', 'QR ya leido', 'Espera unos segundos antes de volver a registrar el mismo codigo.');
-        showToast('Lectura repetida ignorada');
         playSound('warning');
+        await showResultAlert('warning', 'QR ya leido', 'Este codigo fue leido hace unos segundos.');
+        state.processing = false;
+        if (!state.paused) await startScanner();
         return;
       }
 
-      state.processing = true;
       markSeen(cleanId);
       setStatus('', 'Registrando...', cleanId);
 
@@ -489,15 +575,16 @@
         }
 
         setStatus('success', 'Asistencia registrada', 'Puedes pasar el siguiente codigo QR.');
-        showToast(`Registrado: ${cleanId}`);
         playSound('success');
+        await showResultAlert('success', 'Asistencia registrada', 'Registro guardado correctamente.');
       } catch (err) {
         state.recentScans.delete(cleanId);
         setStatus('danger', 'Error al guardar', err.message || 'Revisa la conexion e intenta de nuevo.');
-        showToast('No se pudo registrar');
         playSound('error');
+        await showResultAlert('danger', 'Error al guardar', err.message || 'Revisa la conexion e intenta de nuevo.');
       } finally {
         state.processing = false;
+        if (!state.paused) await startScanner();
       }
     }
 
@@ -529,7 +616,6 @@
         state.scannerActive = false;
         els.cameraText.textContent = 'Camara no disponible';
         setStatus('danger', 'Activa la camara', 'Permite el acceso a la camara y usa el boton Reanudar.');
-        showToast('No se pudo iniciar la camara');
       }
     }
 
